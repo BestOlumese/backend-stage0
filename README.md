@@ -1,31 +1,46 @@
-# API Integration & Data Processing - Stage 0
+# API Integration & Data Persistence - Stage 1
 
-A lightweight Node.js/Express GET endpoint that integrates with the external Genderize API, processes the raw response based on specific logic, and returns a structured JSON result.
+This is a backend service for Stage 1, expanding on Stage 0. It accepts a name, communicates concurrently with three external APIs (Genderize, Agify, Nationalize) for classification logic, and persists the payload securely in a SQLite database with idempotent properties. 
 
-## 🚀 Live Endpoint
+It provides four core CRUD endpoints compliant with exact response schemas and handles edge-cause external API failures gracefully.
 
-`GET https://best-backend-stage0.vercel.app/api/classify?name=john`
+## 🚀 Key Features
 
-## ⚙️ Features & Processing Rules
+* **Concurrency:** Uses `Promise.all` to fetch Gender, Age, and Nationality endpoints simultaneously.
+* **SQLite Persistence:** Uses zero-config SQLite (`sqlite3`) storing data locally, handling duplicates based on case-insensitive matches.
+* **UUID v7 Identifiers:** Generates structurally sequential UUIDs (v7).
+* **Idempotent Creations:** Duplicate incoming `name` parameters return HTTP 200 containing the existing db record instead of mutating the schema.
+* **CORS Compatible:** Ensures `Access-Control-Allow-Origin: *` to satisfy remote grading scripts.
+* **Rigorous Validation & Status Codes:** Thorough handling of 400 (Bad Requests), 422 (Unprocessable Entities), 404 (Not Found), and bespoke 502 logic for invalid external responses (e.g. `gender: null`, `age: null`, null country).
 
-* **External Integration:** Calls the Genderize API to determine gender based on a name.
-* **Data Transformation:** Renames the upstream `count` field to `sample_size`.
-* **Confidence Logic:** Computes an `is_confident` boolean. Returns `true` **only** if `probability >= 0.7` AND `sample_size >= 100`.
-* **Timestamps:** Injects a dynamic `processed_at` timestamp formatted in UTC ISO 8601.
-* **CORS Enabled:** Includes `Access-Control-Allow-Origin: *` to pass automated grading scripts.
+## 📡 Endpoints
 
-## 🛠️ Error Handling
+### 1. Create Profile
+**POST** `/api/profiles`
+Request body: `{ "name": "ella" }`
+Will orchestrate external data fetching or return an existing configuration idempotently. 
 
-The API strictly adheres to the following error structures:
+### 2. Get Single Profile
+**GET** `/api/profiles/{id}`
+Returns the specified `id` record with complete fetched probability, confidence, and nested details.
 
-* **400 Bad Request:** Thrown when the `name` parameter is missing or empty.
-* **422 Unprocessable Entity:** Thrown if the `name` parameter is not a valid string.
-* **404 Not Found (Edge Case):** Thrown if the Genderize API returns `gender: null` or `count: 0` (Message: `"No prediction available for the provided name"`).
-* **500/502 Server Error:** Handles upstream external API timeouts or internal crashes.
+### 3. Get All Profiles (with filtering)
+**GET** `/api/profiles?gender=female&age_group=adult`
+Lists mapped profiles without meta probability details. Supports arbitrary query filtering by `gender`, `country_id`, and `age_group` (case insensitive).
+
+### 4. Delete Profile
+**DELETE** `/api/profiles/{id}`
+Erases existing profile metadata. Returns 204 No Content.
 
 ## 💻 Local Development
 
-1. Clone the repository.
-2. Run `npm install` to install dependencies (Express, Cors, Axios).
-3. Run `npm start` to boot the local server on port 3000.
-4. Test the endpoint: `http://localhost:3000/api/classify?name=john`
+1. Clone or download the repository.
+2. Install dependencies (Requires Node 18+):
+   ```bash
+   npm install
+   ```
+3. Boot the local server (Port `3000` by default):
+   ```bash
+   npm start
+   ```
+4. Perform testing targeting `http://localhost:3000/api/profiles` with a POST JSON body `{ "name": "sample" }`.
